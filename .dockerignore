@@ -1,0 +1,13 @@
+.envrc
+.git
+.gitignore
+LICENSE
+README.md
+bin
+config
+deps
+lib
+mix.exs
+mix.lock
+priv
+test
