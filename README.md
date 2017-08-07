@@ -11,5 +11,5 @@ docker pull getto/flight-auth-phoenix
 # build
 
 ```
-docker build -t getto/flight-auth-phoenix
+docker build -t getto/flight-auth-phoenix dockerfile
 ```
