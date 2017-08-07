@@ -9,7 +9,8 @@ defmodule FlightAuth.Mixfile do
       elixirc_paths: elixirc_paths(Mix.env),
       compilers: [:phoenix, :gettext] ++ Mix.compilers,
       start_permanent: Mix.env == :prod,
-      deps: deps()
+      deps: deps(),
+      escript: escript()
     ]
   end
 
@@ -37,5 +38,9 @@ defmodule FlightAuth.Mixfile do
       {:gettext, "~> 0.11"},
       {:cowboy, "~> 1.0"}
     ]
+  end
+
+  defp escript do
+    [main_module: FlightAuth.CLI, path: "_build/escript/flight_auth"]
   end
 end
