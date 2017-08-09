@@ -20,4 +20,16 @@ defmodule FlightAuth do
       _ -> {:error, :invalid_base64}
     end
   end
+
+  @doc """
+  hash password
+
+  ## Examples
+
+      iex> FlightAuth.password_hash("password", "salt")
+      "eje4XIkY6sGakInA+loqtNzj+QUo3N7sEIsj3fNge5k="
+  """
+  def password_hash(password, salt) do
+    :crypto.hash(:sha256, "#{password}#{salt}") |> Base.encode64
+  end
 end
