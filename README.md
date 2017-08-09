@@ -4,19 +4,63 @@ auth module for getto/flight using phoenix.socket
 
 # usage
 
+## password-hash
+
+filter data for update user profile
+
+```
+echo $data
+# => {"password": <password>}
+
+docker run \
+  -e FLIGHT_DATA="$data" \
+  getto/flight-auth-phoenix \
+  flight_auth password-hash <salt> [--password password]
+
+# => {"password": <hashed password>}
+```
+
+## format-for-auth
+
+filter query for authorize
+
+```
+echo $data
+# => {"key": <key>, "password": <password>}
+
+docker run \
+  -e FLIGHT_DATA="$data" \
+  getto/flight-auth-phoenix \
+  flight_auth format-for-auth <salt> [--password password] [--role role]
+
+# => {"key": <key>, "conditions": {"password": <hashed password>}, columns: ["role"]}
+```
+
 ## sign
 
 ```
-docker run getto/flight-auth-phoenix flight_auth sign <auth_key> --file data.json
+echo $data
+# => {"role": <role>}
 
-# data.json
-{"role": <role>}
+docker run \
+  -e FLIGHT_DATA="$data" \
+  getto/flight-auth-phoenix \
+  flight_auth sign <auth_key>
+
+# => {"role": <role>, "token": <token>}
 ```
 
 ## verify
 
 ```
-docker run getto/flight-auth-phoenix flight_auth verify <auth_key> --expire 3600 --token <token>
+echo $data
+# => {"token": <token>}
+
+docker run \
+  -e FLIGHT_DATA="$data" \
+  getto/flight-auth-phoenix \
+  flight_auth verify <auth_key> --expire 3600
+
 # => <role>
 ```
 
