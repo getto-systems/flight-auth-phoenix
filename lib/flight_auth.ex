@@ -27,9 +27,11 @@ defmodule FlightAuth do
   ## Examples
 
       iex> FlightAuth.password_hash("password", "salt")
-      "eje4XIkY6sGakInA+loqtNzj+QUo3N7sEIsj3fNge5k="
+      "j0/iFH52Dp/ADEcVnDyorUMcuSjSQDV5/ks3FSDV8oI="
+
   """
   def password_hash(password, salt) do
-    :crypto.hash(:sha256, "#{password}#{salt}") |> Base.encode64
+    secret = Application.get_env(:flight_auth, FlightAuthWeb.Endpoint)[:secret_key_base]
+    :crypto.hash(:sha256, "#{secret}#{password}#{salt}") |> Base.encode64
   end
 end
