@@ -16,7 +16,9 @@ defmodule FlightAuth.CLI do
                     case json["role"] do
                       nil -> puts_error("no role in json data")
                       role ->
-                        json = Poison.encode!(%{"token" => FlightAuth.sign(auth_key, role)})
+                        json = json
+                               |> Map.put("token", FlightAuth.sign(auth_key, role))
+                               |> Poison.encode!
                         case File.write(file, json) do
                           :ok -> nil
                           {:error, message} -> puts_error(message)
