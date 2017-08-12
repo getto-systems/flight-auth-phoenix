@@ -10,14 +10,28 @@ filter data for update user profile
 
 ```
 echo $data
-# => {"password": <password>}
+# => {
+  "data": [
+    {
+      "kind": "User",
+      "properties": {"password": <password>}
+    }
+  ]
+}
 
 docker run \
   -e FLIGHT_DATA="$data" \
   getto/flight-auth-phoenix \
-  flight_auth password-hash <salt> [--password password]
+  flight_auth password-hash <kind> <salt> [--password password]
 
-# => {"password": <hashed password>}
+# => {
+  "data": [
+    {
+      "kind": "User",
+      "properties": {"password": <hashed password>}
+    }
+  ]
+}
 ```
 
 ## format-for-auth

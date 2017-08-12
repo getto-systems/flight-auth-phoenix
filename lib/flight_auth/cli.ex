@@ -12,8 +12,16 @@ defmodule FlightAuth.CLI do
     role_col = opts[:role] || "role"
 
     case args do
-      ["password-hash", salt | _] ->
-        %{data | password_col => data[password_col] |> FlightAuth.password_hash(salt)}
+      ["password-hash", kind, salt | _] ->
+        data |> update_in(["data"], fn operates ->
+          operates |> Enum.reduce([], fn operate, acc ->
+            operate = case operate["kind"] do
+              ^kind -> operate |> update_in(["properties",password_col], &(&1 |> FlightAuth.password_hash(salt)))
+              _     -> operate
+            end
+            [operate | acc]
+          end) |> Enum.reverse
+        end)
         |> puts_result
 
       ["format-for-auth", salt | _] ->
