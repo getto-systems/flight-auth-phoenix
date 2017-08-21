@@ -13,13 +13,18 @@ defmodule FlightAuth.CLI do
 
     case args do
       ["password-hash", kind, salt | _] ->
-        data |> update_in(["data"], fn operates ->
-          operates |> Enum.reduce([], fn operate, acc ->
-            operate = case operate["kind"] do
-              ^kind -> operate |> update_in(["properties",password_col], &(&1 |> FlightAuth.password_hash(salt)))
-              _     -> operate
+        data |> update_in(["data"], fn data ->
+          data |> Enum.reduce([], fn info, acc ->
+            info = case info["kind"] do
+              ^kind -> info |> update_in(["properties",password_col], fn val ->
+                case val do
+                  "" -> ""
+                  password -> password |> FlightAuth.password_hash(salt)
+                end
+              end)
+              _ -> info
             end
-            [operate | acc]
+            [info | acc]
           end) |> Enum.reverse
         end)
         |> puts_result
