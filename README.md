@@ -1,6 +1,6 @@
 # flight-auth-phoenix
 
-auth module for getto/flight using phoenix.socket
+auth module for getto/flight using phoenix
 
 # usage
 
