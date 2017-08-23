@@ -41,7 +41,7 @@ defmodule FlightAuth.CLI do
 
       ["sign", auth_key | _] ->
         case data[role_col] do
-          nil -> "no role in data: #{data}" |> puts_error
+          nil -> "no role" |> puts_result(104)
           role ->
             data
             |> Map.put("token", FlightAuth.sign(auth_key, role))
@@ -51,7 +51,7 @@ defmodule FlightAuth.CLI do
       ["verify", auth_key | _] ->
         case FlightAuth.verify(auth_key, opts[:expire], data["token"]) do
           {:ok,    role}    -> role    |> puts_result
-          {:error, message} -> message |> puts_error
+          {:error, message} -> message |> puts_result(101)
         end
 
       _ -> "unknown command: #{arguments}" |> puts_error
@@ -61,7 +61,12 @@ defmodule FlightAuth.CLI do
   defp puts_result(data) do
     IO.puts(data |> Poison.encode!)
   end
+  defp puts_result(message,status) do
+    IO.puts(message)
+    System.halt(status)
+  end
   defp puts_error(message) do
     IO.puts(:stderr, "#{__MODULE__}: [ERROR] #{message}")
+    System.halt(1)
   end
 end
