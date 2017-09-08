@@ -6,9 +6,19 @@ defmodule FlightAuth do
   @doc """
   create token from salt and structure
   """
-  def sign(auth_key, data) do
-    Phoenix.Token.sign(FlightAuthWeb.Endpoint, auth_key, data)
-    |> Base.encode64
+  def sign(auth_key, data, require_cols) do
+    require_cols
+    |> Enum.all?(fn key -> data[key] end)
+    |> case do
+      true ->
+        {
+          :ok,
+          Phoenix.Token.sign(FlightAuthWeb.Endpoint, auth_key, data)
+          |> Base.encode64,
+        }
+      false ->
+        {:error, "require cols not exists"}
+    end
   end
 
   @doc """
