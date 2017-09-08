@@ -40,18 +40,15 @@ defmodule FlightAuth.CLI do
         |> puts_result
 
       ["sign", auth_key | _] ->
-        case data[role_col] do
-          nil -> "no role" |> puts_result(104)
-          role ->
-            data
-            |> Map.put("token", FlightAuth.sign(auth_key, role))
-            |> puts_result
-        end
+        data = data |> Map.delete(password_col)
+        data
+        |> Map.put("token", FlightAuth.sign(auth_key, data))
+        |> puts_result
 
       ["verify", auth_key | _] ->
         case FlightAuth.verify(auth_key, opts[:expire], data["token"]) do
-          {:ok,    role}    -> role    |> puts_result
-          {:error, message} -> message |> puts_result(101)
+          {:ok,    credential} -> credential |> puts_result
+          {:error, message}    -> message    |> puts_result(101)
         end
 
       _ -> "unknown command: #{arguments}" |> puts_error
