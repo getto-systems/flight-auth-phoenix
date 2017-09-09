@@ -5,6 +5,7 @@ defmodule FlightAuth.CLI do
       loginID: :string,
       role: :string,
       expire: :integer,
+      verify: :integer,
     ])
 
     data = parse_data("FLIGHT_DATA")
@@ -47,12 +48,13 @@ defmodule FlightAuth.CLI do
       ["sign", auth_key | _] ->
         data
         |> Map.delete(password_col)
+        |> Map.put("signed_at", DateTime.utc_now |> DateTime.to_iso8601)
         |> sign(auth_key, require_cols)
 
       ["renew", auth_key | _] ->
         credential
         |> Map.delete("token")
-        |> sign(auth_key, require_cols)
+        |> sign(auth_key, require_cols, opts[:verify] || 0)
 
       ["verify", auth_key | _] ->
         case FlightAuth.verify(auth_key, opts[:expire], data["token"]) do
@@ -64,6 +66,20 @@ defmodule FlightAuth.CLI do
     end
   end
 
+  defp sign(data,auth_key,require_cols,verify) do
+    case data["signed_at"] |> DateTime.from_iso8601 do
+      {:ok, signed_at, _offset} ->
+        if DateTime.utc_now |> DateTime.diff(signed_at) < verify do
+          sign(data,auth_key,require_cols)
+        else
+          "signed_at expired: #{signed_at |> inspect}"
+          |> puts_result(101)
+        end
+      {:error, message} ->
+        "failed parse signed_at: #{message}"
+        |> puts_result(101)
+    end
+  end
   defp sign(data,auth_key,require_cols) do
     case FlightAuth.sign(auth_key, data, require_cols) do
       {:ok, token} ->
