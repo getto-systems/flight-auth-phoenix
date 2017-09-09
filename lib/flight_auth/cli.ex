@@ -46,14 +46,18 @@ defmodule FlightAuth.CLI do
         |> puts_result
 
       ["sign", auth_key | _] ->
+        now = DateTime.utc_now |> DateTime.to_iso8601
         data
         |> Map.delete(password_col)
-        |> Map.put("signed_at", DateTime.utc_now |> DateTime.to_iso8601)
+        |> Map.put("signedAt", now)
+        |> Map.put("renewedAt", now)
         |> sign(auth_key, require_cols)
 
       ["renew", auth_key | _] ->
+        now = DateTime.utc_now |> DateTime.to_iso8601
         credential
         |> Map.delete("token")
+        |> Map.put("renewedAt", now)
         |> sign(auth_key, require_cols, opts[:verify] || 0)
 
       ["verify", auth_key | _] ->
@@ -67,7 +71,7 @@ defmodule FlightAuth.CLI do
   end
 
   defp sign(data,auth_key,require_cols,verify) do
-    case data["signed_at"] |> DateTime.from_iso8601 do
+    case data["signedAt"] |> DateTime.from_iso8601 do
       {:ok, signed_at, _offset} ->
         if DateTime.utc_now |> DateTime.diff(signed_at) < verify do
           sign(data,auth_key,require_cols)
