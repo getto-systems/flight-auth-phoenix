@@ -1,78 +1,105 @@
 defmodule FlightAuth.CLI do
   def main(arguments) do
-    {opts, args, _} = OptionParser.parse(arguments, strict: [
-      password: :string,
-      loginID: :string,
-      role: :string,
-      expire: :integer,
-      verify: :integer,
-    ])
+    {_opts, args, _} = OptionParser.parse(arguments)
 
-    data = parse_data("FLIGHT_DATA")
-    credential = parse_data("FLIGHT_CREDENTIAL")
+    data = parse_env("FLIGHT_DATA")
+    credential = parse_env("FLIGHT_CREDENTIAL")
 
-    password_col = opts[:password] || "password"
-    loginID_col = opts[:loginID] || "loginID"
-    role_col = opts[:role] || "role"
-
-    require_cols = [loginID_col, role_col]
+    cols = %{
+      "password" => "password",
+      "loginID" => "loginID",
+      "role" => "role",
+    }
 
     case args do
-      ["password-hash", kind, salt | _] ->
-        data |> Enum.reduce([], fn info, acc ->
-          info = case info["kind"] do
-            ^kind -> info |> update_in(["properties",password_col], fn val ->
-              case val do
-                "" -> ""
-                password -> password |> FlightAuth.password_hash(salt)
-              end
-            end)
-            _ -> info
-          end
-          [info | acc]
-        end) |> Enum.reverse
-        |> puts_result
-
-      ["format-for-auth", salt | _] ->
-        %{
-          "key" => data["key"],
-          "conditions" => %{
-            password_col => data[password_col] |> FlightAuth.password_hash(salt),
-          },
-          "columns" => require_cols,
-        }
-        |> puts_result
-
-      ["sign", auth_key | _] ->
-        now = DateTime.utc_now |> DateTime.to_iso8601
-        data
-        |> Map.delete(password_col)
-        |> Map.put("signedAt", now)
-        |> Map.put("renewedAt", now)
-        |> sign(auth_key, require_cols)
-
-      ["renew", auth_key | _] ->
-        now = DateTime.utc_now |> DateTime.to_iso8601
-        credential
-        |> Map.delete("token")
-        |> Map.put("renewedAt", now)
-        |> sign(auth_key, require_cols, opts[:verify] || 0)
-
-      ["verify", auth_key | _] ->
-        case FlightAuth.verify(auth_key, opts[:expire], data["token"]) do
-          {:ok,    credential} -> credential |> puts_result
-          {:error, message}    -> message    |> puts_result(101)
-        end
+      ["password-hash",   opts | _] -> opts |> parse_arg(cols) |> password_hash(data,credential)
+      ["format-for-auth", opts | _] -> opts |> parse_arg(cols) |> format_for_auth(data,credential)
+      ["sign",            opts | _] -> opts |> parse_arg(cols) |> sign(data,credential)
+      ["renew",           opts | _] -> opts |> parse_arg(cols) |> renew(data,credential)
+      ["verify",          opts | _] -> opts |> parse_arg(cols) |> verify(data,credential)
 
       _ -> "unknown command: #{arguments}" |> puts_error
     end
   end
 
-  defp sign(data,auth_key,require_cols,verify) do
+  defp password_hash(opts,data,_credential) do
+    kind = opts["kind"]
+    salt = opts["salt"]
+    password_col = opts["password"]
+
+    data |> Enum.reduce([], fn info, acc ->
+      info = case info["kind"] do
+        ^kind -> info |> update_in(["properties",password_col], fn val ->
+          case val do
+            "" -> ""
+            password -> password |> FlightAuth.password_hash(salt)
+          end
+        end)
+        _ -> info
+      end
+      [info | acc]
+    end) |> Enum.reverse
+    |> puts_result
+  end
+
+  defp format_for_auth(opts,data,_credential) do
+    salt = opts["salt"]
+    password_col = opts["password"]
+    loginID_col = opts["loginID"]
+    role_col = opts["role"]
+
+    %{
+      "key" => data["key"],
+      "conditions" => %{
+        password_col => data[password_col] |> FlightAuth.password_hash(salt),
+      },
+      "columns" => [loginID_col, role_col],
+    }
+    |> puts_result
+  end
+
+  defp sign(opts,data,_credential) do
+    auth_key = opts["key"]
+    password_col = opts["password"]
+    loginID_col = opts["loginID"]
+    role_col = opts["role"]
+
+    now = DateTime.utc_now |> DateTime.to_iso8601
+    data
+    |> Map.delete(password_col)
+    |> Map.put("signedAt", now)
+    |> Map.put("renewedAt", now)
+    |> sign_key(auth_key, [loginID_col, role_col])
+  end
+
+  defp renew(opts,_data,credential) do
+    auth_key = opts["key"]
+    loginID_col = opts["loginID"]
+    role_col = opts["role"]
+    verify = opts["verify"] || 0
+
+    now = DateTime.utc_now |> DateTime.to_iso8601
+    credential
+    |> Map.delete("token")
+    |> Map.put("renewedAt", now)
+    |> sign_key(auth_key, [loginID_col, role_col], verify)
+  end
+
+  defp verify(opts,data,_credential) do
+    auth_key = opts["key"]
+    expire = opts["expire"] || 0
+
+    case FlightAuth.verify(auth_key, expire, data["token"]) do
+      {:ok,    credential} -> credential |> puts_result
+      {:error, message}    -> message    |> puts_result(101)
+    end
+  end
+
+  defp sign_key(data,auth_key,require_cols,verify) do
     case data["signedAt"] |> DateTime.from_iso8601 do
       {:ok, signed_at, _offset} ->
         if DateTime.utc_now |> DateTime.diff(signed_at) < verify do
-          sign(data,auth_key,require_cols)
+          sign_key(data,auth_key,require_cols)
         else
           "signed_at expired: #{signed_at |> inspect}"
           |> puts_result(101)
@@ -82,7 +109,7 @@ defmodule FlightAuth.CLI do
         |> puts_result(101)
     end
   end
-  defp sign(data,auth_key,require_cols) do
+  defp sign_key(data,auth_key,require_cols) do
     case FlightAuth.sign(auth_key, data, require_cols) do
       {:ok, token} ->
         data
@@ -94,8 +121,19 @@ defmodule FlightAuth.CLI do
     end
   end
 
-  defp parse_data(key) do
+  defp parse_env(key) do
     System.get_env(key)
+    |> parse_json
+  end
+  defp parse_arg(json,defaults) do
+    defaults
+    |> Map.merge(
+      json
+      |> parse_json
+    )
+  end
+  defp parse_json(json) do
+    json
     |> case do
       nil -> %{}
       raw ->
