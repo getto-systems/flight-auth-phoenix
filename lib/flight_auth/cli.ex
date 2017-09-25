@@ -43,12 +43,14 @@ defmodule FlightAuth.CLI do
   end
 
   defp format_for_auth(opts,data,_credential) do
+    kind = opts["kind"]
     salt = opts["salt"]
     password_col = opts["password"]
     loginID_col = opts["loginID"]
     role_col = opts["role"]
 
     %{
+      "kind" => kind,
       "key" => data["key"],
       "conditions" => %{
         password_col => data[password_col] |> FlightAuth.password_hash(salt),
