@@ -7,8 +7,6 @@ defmodule FlightAuth.CLI do
 
     cols = %{
       "password" => "password",
-      "loginID" => "loginID",
-      "role" => "role",
     }
 
     case args do
@@ -43,48 +41,38 @@ defmodule FlightAuth.CLI do
   end
 
   defp format_for_auth(opts,data,_credential) do
-    kind = opts["kind"]
     salt = opts["salt"]
     password_col = opts["password"]
-    loginID_col = opts["loginID"]
-    role_col = opts["role"]
 
-    %{
-      "kind" => kind,
-      "key" => data["key"],
-      "conditions" => %{
-        password_col => data[password_col] |> FlightAuth.password_hash(salt),
-      },
-      "columns" => [loginID_col, role_col],
-    }
+    %{ data | "conditions" => %{
+      data["conditions"] | password_col => data["conditions"][password_col] |> FlightAuth.password_hash(salt)
+    }}
     |> puts_result
   end
 
   defp sign(opts,data,_credential) do
     auth_key = opts["key"]
     password_col = opts["password"]
-    loginID_col = opts["loginID"]
-    role_col = opts["role"]
+    require_cols = opts["require_cols"]
 
     now = DateTime.utc_now |> DateTime.to_iso8601
     data
     |> Map.delete(password_col)
     |> Map.put("signedAt", now)
     |> Map.put("renewedAt", now)
-    |> sign_key(auth_key, [loginID_col, role_col])
+    |> sign_key(auth_key, require_cols)
   end
 
   defp renew(opts,_data,credential) do
     auth_key = opts["key"]
-    loginID_col = opts["loginID"]
-    role_col = opts["role"]
+    require_cols = opts["require_cols"]
     verify = opts["verify"] || 0
 
     now = DateTime.utc_now |> DateTime.to_iso8601
     credential
     |> Map.delete("token")
     |> Map.put("renewedAt", now)
-    |> sign_key(auth_key, [loginID_col, role_col], verify)
+    |> sign_key(auth_key, require_cols, verify)
   end
 
   defp verify(opts,data,_credential) do
