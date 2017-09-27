@@ -25,7 +25,8 @@ defmodule FlightAuth.CLI do
     salt = opts["salt"]
     password_col = opts["password"]
 
-    data |> Enum.reduce([], fn info, acc ->
+    data
+    |> Enum.map(fn info ->
       info = case info["kind"] do
         ^kind -> info |> update_in(["properties",password_col], fn val ->
           case val do
@@ -35,8 +36,8 @@ defmodule FlightAuth.CLI do
         end)
         _ -> info
       end
-      [info | acc]
-    end) |> Enum.reverse
+      info
+    end)
     |> puts_result
   end
 
