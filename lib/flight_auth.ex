@@ -8,7 +8,7 @@ defmodule FlightAuth do
   """
   def sign(auth_key, data, require_cols) do
     require_cols
-    |> Enum.all?(fn key -> data[key] end)
+    |> Enum.all?(fn key -> data |> Map.has_key?(key) end)
     |> case do
       true ->
         {
